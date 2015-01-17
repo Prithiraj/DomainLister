@@ -12,6 +12,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
@@ -66,7 +67,7 @@ public class DomainList extends Configured implements Tool{
 			csvOutput.writeLong(value.get(),"occurences");
 		}
 	}
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		int res = ToolRunner.run(new Configuration(), new DomainList(), args);
 		System.exit(res);
 	}
@@ -78,6 +79,30 @@ public class DomainList extends Configured implements Tool{
 		conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3native.NativeS3FileSystem");
 		conf.set("fs.s3.awsAccessKeyId",args[0]);
 		conf.set("fs.s3.awsSecretAccessKey",args[1]);
+		
+		JobConf job = new JobConf(conf, DomainList.class);
+		job.setJarByClass(getClass());
+		job.setNumReduceTasks(1);
+		
+		
+		Path in = new Path(args[2]);
+		Path out = new Path(args[3]);
+		
+		// Specify job specific parameters
+		// Specify various job-specific parameters     
+        job.setJobName("my-app");
+        FileInputFormat.setInputPaths(job, new Path("in"));
+        FileOutputFormat.setOutputPath(job, new Path("out"));
+        
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(LongWritable.class);
+        
+        job.setInputFormat(WarcFileInputFormat.class);
+        //job.setOutputFormat(Long);
+        
+        job.setMapperClass(DomainListMapper.class);
+        job.setCombinerClass(DomainListReducer.class);
+        job.setReducerClass(DomainListReducer.class);
 		
 		return 0;
 	}
