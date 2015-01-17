@@ -87,6 +87,7 @@ public class DomainList extends Configured implements Tool{
 		
 		while ((line = br.readLine()) != null) {
 	        args[2] = CC_BUCKET.concat(line);
+	        System.out.println(args[2]);
 	        int res = ToolRunner.run(new Configuration(), new DomainList(), args);
 	        
 	    }
