@@ -2,6 +2,16 @@ package co.cc.dl;
 
 
 //import java.util.logging.*;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.util.zip.GZIPInputStream;
+
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
@@ -9,11 +19,15 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
+import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
+
+import com.sun.jersey.core.util.StringIgnoreCaseKeyComparator;
 
 import edu.cmu.lemurproject.WarcFileInputFormat;
 
@@ -24,7 +38,7 @@ public class DomainList extends Configured implements Tool{
 	/**
 	 * Contains Amazon S3 bucket holding the commoncrawl data
 	 */
-	private static final String CC_BUCKET="aws-publicdatasets";
+	private static final String CC_BUCKET="s3://aws-publicdatasets/";
 	
 	//private static final Logger LOG = Logger.getLogger(DomainList.class);
 	/*private static class CSVOutputFormat extends TextOutputFormat<Text, LongWritable>{
@@ -59,13 +73,28 @@ public class DomainList extends Configured implements Tool{
 		}
 	}*/
 	public static void main(String[] args) throws Exception {
-		int res = ToolRunner.run(new Configuration(), new DomainList(), args);
-		System.exit(res);
+		
+		URI uri = new URI("https://s3-us-west-2.amazonaws.com/commoncrawloutput/wat.list.gz");
+		File f = new File(uri);
+		InputStream is = new FileInputStream(f);
+		GZIPInputStream gis = new GZIPInputStream(is);
+		InputStreamReader r = new InputStreamReader(gis);// gis = new GZIPInputStream(fn);
+		
+		BufferedReader br = new BufferedReader(r);
+		
+		String line="";
+		int lineNumber=0;
+		
+		while ((line = br.readLine()) != null) {
+	        args[2] = CC_BUCKET.concat(line);
+	        int res = ToolRunner.run(new Configuration(), new DomainList(), args);
+	        
+	    }
 	}
 	@Override
 	public int run(String[] args) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 		String AccessKey = args[0]; //1
 		String SecretKey = args[1]; //2
 		String InputPath = args[2]; //3
@@ -80,6 +109,7 @@ public class DomainList extends Configured implements Tool{
 		JobConf job = new JobConf(conf, DomainList.class);
 		job.setJarByClass(getClass());
 		job.setNumReduceTasks(1);
+		
 		
 		//Path in = new Path(args[2]);
 		//Path out = new Path(args[3]);
@@ -100,6 +130,8 @@ public class DomainList extends Configured implements Tool{
         job.setCombinerClass(DomainListReducer.class);
         job.setReducerClass(DomainListReducer.class);
 		
+        RunningJob rj=JobClient.runJob(job);
+        System.out.println(rj.getJobStatus());
 		return 0;
 	}
 
